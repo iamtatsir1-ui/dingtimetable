@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes, viewport-fit=cover">
+<title>教師個人時間表</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{--navy:#1e293b;--blue:#0284c7;--red:#ff003c;--yellow:#fbbf24;--eva-green:#84cc16}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;height:100dvh;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang TC","Microsoft JhengHei",sans-serif;background:#f8fafc;color:#333}
+.container{width:100%;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;padding:calc(4px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left));background:#fff;transition:box-shadow 0.2s, background-color 0.2s}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex:0 0 auto;border-bottom:2px solid #cbd5e1;padding:0 0 5px;margin:4px 0 5px;min-width:0}
+.header-left{display:flex;align-items:center;gap:clamp(8px,2vw,20px);min-width:0}
+h1{font-size:clamp(.85rem,2.2vw,1.25rem);color:#0f172a;font-weight:800;white-space:nowrap}
+.date-summary{display:flex;align-items:center;gap:6px;color:#334155;font-size:clamp(.72rem,1.7vw,1rem);font-weight:700;white-space:nowrap}
+.time-clock{background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:4px;font-family:monospace;font-weight:900;letter-spacing:1px;box-shadow:inset 0 0 4px rgba(0,0,0,0.5);cursor:pointer;transition:all 0.2s}
+.time-clock:hover{background:#0284c7;color:#fff}
+.time-clock.is-simulated{background:#b91c1c;color:#fef08a;animation:pulseSim 1.5s infinite}
+@keyframes pulseSim{0%,100%{opacity:1}50%{opacity:0.7}}
+.header-controls{display:flex;align-items:center;justify-content:flex-end;gap:clamp(4px,1vw,10px);min-width:0}
+.date-picker-wrapper{display:flex;align-items:center;gap:4px;font-size:clamp(.68rem,1.5vw,.88rem);font-weight:700;white-space:nowrap}
+.date-picker-wrapper input{width:clamp(118px,16vw,155px);padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;background:#fff;font:inherit}
+#main-layout{flex:1 1 auto;min-height:0;min-width:0;width:100%;display:flex;flex-direction:row;gap:6px;overflow:hidden}
+.marquee-wrapper{display:none;flex:0 0 auto;overflow:hidden;white-space:nowrap;width:100%;padding:4px 0;font-weight:900;font-size:clamp(.75rem,1.8vw,1.05rem);line-height:1.2;letter-spacing:1px;position:relative;z-index:20}
+.marquee-content{display:inline-flex;white-space:nowrap;width:max-content}
+.marquee-ltr .marquee-content{animation:marqueeLTR 16s linear infinite}
+@keyframes marqueeLTR{0%{transform:translateX(-50%)}100%{transform:translateX(0%)}}
+.marquee-rtl .marquee-content{animation:marqueeRTL 16s linear infinite}
+@keyframes marqueeRTL{0%{transform:translateX(0%)}100%{transform:translateX(-50%)}}
+.marquee-wrapper.phase-1{background:#0a0a0a;color:#ff003c;border-top:3px solid #ff003c;border-bottom:3px solid #ff003c;background-image:repeating-linear-gradient(45deg,rgba(255,0,60,0.25) 0,rgba(255,0,60,0.25) 15px,rgba(0,0,0,0.9) 15px,rgba(0,0,0,0.9) 30px);box-shadow:0 0 12px #ff003c,inset 0 0 8px #ff003c}
+.marquee-wrapper.phase-2{background:#110005;color:#fff;border-top:3px solid #fbbf24;border-bottom:3px solid #fbbf24;background-image:repeating-linear-gradient(-45deg,rgba(255,0,60,0.85) 0,rgba(255,0,60,0.85) 18px,rgba(0,0,0,0.9) 18px,rgba(0,0,0,0.9) 36px);text-shadow:0 0 8px #000,0 0 10px #fbbf24;animation:evaBannerFlash 0.25s infinite alternate}
+@keyframes evaBannerFlash{0%{border-color:#fbbf24;box-shadow:0 0 15px #ff003c,inset 0 0 10px #fbbf24}100%{border-color:#fff;box-shadow:0 0 30px #ff003c,0 0 20px #ff0,inset 0 0 25px #ff003c}}
+body.emergency-critical .container{animation:screenCriticalFlash 0.25s infinite alternate!important}
+@keyframes screenCriticalFlash{0%{box-shadow:inset 0 0 40px rgba(255,0,60,0.8);border:4px solid rgba(255,0,60,0.9);background-color:rgba(255,0,60,0.05)}50%{box-shadow:inset 0 0 90px rgba(255,0,60,1),inset 0 0 140px rgba(251,191,36,0.85);background-color:rgba(255,0,60,0.22)}100%{box-shadow:inset 0 0 60px rgba(255,0,60,0.9);border:4px solid rgba(251,191,36,1);background-color:rgba(255,0,60,0.08)}}
+.eva-panel{display:none;flex:1 1 50%;background:#050505;border:4px solid var(--eva-green);border-radius:4px;position:relative;overflow:hidden;padding:8px;flex-direction:column;justify-content:space-between;box-shadow:0 0 20px rgba(132,204,22,0.3),inset 0 0 20px rgba(0,0,0,0.9);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;user-select:none;transition:all 0.3s ease;min-width:0;min-height:0}
+.eva-header-bar{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#84cc16 0%,#4d7c0f 100%);color:#000;padding:3px 8px;font-weight:900;font-size:clamp(.65rem,1.4vw,.95rem);letter-spacing:1px;white-space:nowrap;overflow:hidden}
+.eva-timer-main{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:8px 12px;background:radial-gradient(circle,rgba(25,25,25,1) 0%,rgba(5,5,5,1) 100%);border:2px solid #3f6212;margin:4px 0;position:relative;border-left:6px solid #f97316;min-width:0;overflow:hidden}
+.eva-timer-title{color:#f97316;font-size:clamp(.75rem,1.6vw,1.2rem);font-weight:900;letter-spacing:1px;display:flex;align-items:baseline;gap:8px;white-space:nowrap;overflow:hidden}
+.eva-timer-digits{font-family:'Courier New',Courier,monospace;font-size:clamp(2.3rem,6.2vw,5rem);font-weight:900;color:#ff3300;text-shadow:0 0 12px #ff3300,0 0 25px #f60;line-height:1;letter-spacing:2px;margin:6px 0;white-space:nowrap;overflow:hidden}
+.eva-target-class{font-size:clamp(.8rem,1.6vw,1.2rem);font-weight:900;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:3px;border:1px solid rgba(251,191,36,0.4);white-space:nowrap;overflow:hidden}
+.eva-grid-container{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;min-width:0}
+.eva-box-internal{background:repeating-linear-gradient(-45deg,rgba(239,68,68,0.8) 0,rgba(239,68,68,0.8) 12px,rgba(20,0,0,0.9) 12px,rgba(20,0,0,0.9) 24px);border:2px solid #ef4444;padding:6px 8px;color:#fff;min-width:0;overflow:hidden}
+.eva-box-internal .title{font-size:clamp(1rem,2vw,1.5rem);font-weight:900;color:#fff;text-shadow:0 0 6px #000;white-space:nowrap;overflow:hidden}
+.eva-box-internal .sub{font-size:clamp(.55rem,1.1vw,.8rem);color:#fca5a5;letter-spacing:2px;font-weight:800;white-space:nowrap;overflow:hidden}
+.eva-box-power{border:2px solid #f97316;background:#0f0f0f;padding:6px 8px;color:#f97316;min-width:0;overflow:hidden}
+.eva-box-power .title{font-size:clamp(.7rem,1.3vw,1rem);font-weight:900;line-height:1.1;white-space:nowrap;overflow:hidden}
+.eva-box-power .sub{font-size:clamp(.5rem,.9vw,.7rem);color:#fdba74;letter-spacing:1px;white-space:nowrap;overflow:hidden}
+.eva-status-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px;min-width:0}
+.eva-status-item{background:#18181b;border:1px solid #3f3f46;color:#71717a;text-align:center;padding:2px 0;font-size:clamp(.55rem,1vw,.8rem);font-weight:900;transition:all 0.2s;white-space:nowrap;overflow:hidden}
+/* Normal 改為與 Racing 相同的紅色閃爍 */
+.eva-status-item.active-normal{background:#dc2626;color:#fff;border-color:#f87171;box-shadow:0 0 10px #dc2626;animation:pulseRacing .6s infinite alternate}
+.eva-status-item.active-racing{background:#dc2626;color:#fff;border-color:#f87171;box-shadow:0 0 10px #dc2626;animation:pulseRacing .6s infinite alternate}
+@keyframes pulseNormal{0%{opacity:.55}100%{opacity:1}}
+@keyframes pulseRacing{0%{opacity:.5}100%{opacity:1}}
+.eva-panel.critical-mode{border-color:#ff003c!important;background:radial-gradient(circle,#38000a 0%,#080003 100%)!important;box-shadow:0 0 35px #ff003c,inset 0 0 30px rgba(255,0,60,.8)!important;animation:evaPanelPulse .3s infinite alternate!important}
+@keyframes evaPanelPulse{0%{border-color:#ff003c;box-shadow:0 0 25px #ff003c,inset 0 0 20px #ff003c}100%{border-color:#fff;box-shadow:0 0 50px #ff003c,0 0 25px #ff0,inset 0 0 35px #ff003c}}
+.eva-panel.critical-mode .eva-header-bar{background:#ff003c!important;color:#fff!important;box-shadow:0 0 12px #ff003c}
+.eva-panel.critical-mode .eva-timer-main{background:radial-gradient(circle,rgba(60,0,15,1) 0%,rgba(10,0,3,1) 100%)!important;border-color:#ff003c!important;border-left-color:#ff003c!important}
+.eva-panel.critical-mode .eva-timer-title{color:#ff003c!important;text-shadow:0 0 8px #ff003c}
+.eva-panel.critical-mode .eva-timer-digits{color:#ff3300!important;text-shadow:0 0 18px #ff003c,0 0 35px red,0 0 50px #f60!important}
+.eva-panel.critical-mode .eva-target-class{color:#fff!important;background:rgba(255,0,60,.3)!important;border-color:#ff003c!important}
+.eva-panel.critical-mode .eva-box-internal{background:repeating-linear-gradient(-45deg,rgba(255,0,60,.95) 0,rgba(255,0,60,.95) 15px,rgba(20,0,5,.95) 15px,rgba(20,0,5,.95) 30px)!important;border-color:#ff003c!important;box-shadow:0 0 12px rgba(255,0,60,.6)!important}
+.eva-panel.critical-mode .eva-box-power{border-color:#ff003c!important;color:#ff003c!important;background:#1a0005!important}
+#table-container{flex:1 1 auto;min-height:0;min-width:0;width:100%;overflow:hidden;display:flex}
+table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed;font-size:16px;line-height:1.05}
+col.time-column{width:18%}col.day-column{width:16.4%}
+th,td{border:1px solid #94a3b8;padding:1px 2px;text-align:center;vertical-align:middle;overflow:hidden;white-space:nowrap;line-height:1.05}
+th{background:var(--navy);color:#fff;font-weight:700}
+.group-th-bg{background:var(--blue)!important;color:#fff!important;font-weight:800!important}
+.group-bg{background:#f8fafc;font-weight:700}
+.group-col-left{border-left:3px solid var(--blue)!important}
+.group-col-right{border-right:3px solid var(--blue)!important}
+.group-col-top{border-top:3px solid var(--blue)!important}
+.group-col-bottom{border-bottom:3px solid var(--blue)!important}
+.time-col{background:#e2e8f0;font-weight:800;text-align:center}
+.free-slot{background:#fff!important;color:transparent!important}
+.active-class{background:#fde047!important;color:#0f172a;font-weight:700;cursor:pointer}
+.active-class.class-1a{background:#fbcfe8!important}
+.active-class.class-1d{background:#bfdbfe!important}
+/* 當刻課堂：淺綠漸變 */
+.current-live-cell{
+  background:linear-gradient(135deg,#bbf7d0 0%,#86efac 50%,#4ade80 100%)!important;
+  color:#14532d!important;
+  font-weight:900!important;
+  position:relative;
+  z-index:5;
+  animation:liveGreenGlow 2s ease-in-out infinite;
+}
+@keyframes liveGreenGlow{
+  0%,100%{box-shadow:inset 0 0 6px rgba(34,197,94,.4)}
+  50%{box-shadow:inset 0 0 14px rgba(34,197,94,.85)}
+}
+.live-slot-left{border-top:3px solid #16a34a!important;border-bottom:3px solid #16a34a!important;border-left:3px solid #16a34a!important}
+.live-slot-right{border-top:3px solid #16a34a!important;border-bottom:3px solid #16a34a!important;border-right:3px solid #16a34a!important}
+/* 5分鐘倒數：淺紅漸變 + 閃動（僅限 EVA 倒數的預備課堂與時間） */
+.is-approaching{
+  background:linear-gradient(135deg,#fecaca 0%,#fca5a5 40%,#f87171 100%)!important;
+  color:#7f1d1d!important;
+  font-weight:900!important;
+  position:relative;
+  animation:approachFlash 0.55s ease-in-out infinite alternate!important;
+  border:3px solid #ef4444!important;
+}
+@keyframes approachFlash{
+  0%{box-shadow:0 0 8px #f87171,inset 0 0 6px #fee2e2;filter:brightness(1)}
+  100%{box-shadow:0 0 22px #ef4444,0 0 30px #fbbf24,inset 0 0 12px #fecaca;filter:brightness(1.15)}
+}
+.approach-slot-left{border-top:3px solid #ef4444!important;border-bottom:3px solid #ef4444!important;border-left:3px solid #ef4444!important}
+.approach-slot-right{border-top:3px solid #ef4444!important;border-bottom:3px solid #ef4444!important;border-right:3px solid #ef4444!important}
+.manually-hidden{background:#fff!important;color:transparent!important;box-shadow:none!important;cursor:pointer}
+@media(max-width:640px){header{gap:5px;padding-bottom:4px;margin-bottom:4px}.header-left{gap:6px}h1{font-size:clamp(.72rem,3.2vw,.95rem);line-height:1.1}.date-summary{font-size:clamp(.65rem,2.5vw,.82rem);gap:4px}.header-controls{justify-content:flex-end;gap:4px}.date-picker-wrapper{font-size:clamp(.62rem,2.5vw,.78rem);gap:3px}.date-picker-wrapper input{width:clamp(105px,34vw,140px);padding:2px 3px}.marquee-wrapper{font-size:clamp(.65rem,2.8vw,.85rem);padding:3px 0}col.time-column{width:19%}col.day-column{width:16.2%}.group-col-left{border-left-width:2px!important}.group-col-right{border-right-width:2px!important}}
+@media(orientation:portrait){.container{position:fixed;top:0;left:100vw;width:100dvh;height:100vw;transform:rotate(90deg);transform-origin:top left}header{display:flex;align-items:center;justify-content:space-between}.header-left{flex-direction:row;gap:clamp(8px,2vw,20px)}.header-controls{width:auto;justify-content:flex-end}}
+@media(max-height:460px){.container{padding-top:calc(2px + env(safe-area-inset-top));padding-bottom:calc(2px + env(safe-area-inset-bottom))}header{padding-bottom:2px;margin-bottom:2px}.header-controls{gap:4px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="approaching-banner-top" class="marquee-wrapper marquee-ltr" role="status" aria-live="polite"><div class="marquee-content" id="top-marquee-text"></div></div>
+  <header>
+    <div class="header-left">
+      <h1>教師個人時間表</h1>
+      <div class="date-summary" aria-live="polite">
+        <span id="current-date"></span>
+        <span id="current-weekday" class="weekday-picker" role="button" tabindex="0" aria-label="點擊修改測試星期" title="點擊修改測試星期"></span>
+        <span id="current-time" class="time-clock" title="點擊修改測試時間"></span>
+        <button id="reset-time-btn" style="display:none;" class="bg-red-600 text-white text-xs px-2 py-0.5 rounded font-bold hover:bg-red-700 transition">重置真實時間</button>
+      </div>
+    </div>
+    <div class="header-controls">
+      <div class="date-picker-wrapper">
+        <label for="date-select">選擇日期:</label>
+        <input type="date" id="date-select" aria-label="選擇日期">
+      </div>
+    </div>
+  </header>
+  <div id="main-layout">
+    <div id="eva-panel" class="eva-panel">
+      <div class="eva-header-bar">
+        <span>INTERNAL EMERGENCY ALERT</span>
+        <span>CHY-00 SYSTEM</span>
+      </div>
+      <div class="eva-timer-main">
+        <div class="eva-timer-title">
+          <span>活動限界まで</span>
+          <span style="font-size:0.65em;opacity:0.8;font-weight:normal;">ACTIVE TIME REMAINING:</span>
+        </div>
+        <div id="eva-timer-digits" class="eva-timer-digits">04:57:00</div>
+        <div id="eva-target-class" class="eva-target-class">Chin 1D (204)</div>
+      </div>
+      <div class="eva-grid-container">
+        <div class="eva-box-internal">
+          <div class="title">內部</div>
+          <div class="sub">INTERNAL</div>
+        </div>
+        <div class="eva-box-power">
+          <div class="title">主電源供給系統</div>
+          <div class="sub">MAIN ENERGY SUPPLY SYSTEM</div>
+          <div style="font-size:10px;color:#ef4444;font-weight:900;margin-top:3px;white-space:nowrap;overflow:hidden;">外部 EXTERNAL</div>
+        </div>
+      </div>
+      <div class="eva-status-bar">
+        <div class="eva-status-item">STOP</div>
+        <div class="eva-status-item">SLOW</div>
+        <div id="eva-status-normal" class="eva-status-item">NORMAL</div>
+        <div id="eva-status-racing" class="eva-status-item">RACING</div>
+      </div>
+    </div>
+    <div id="table-container" aria-label="教師每週時間表"></div>
+  </div>
+  <div id="approaching-banner-bottom" class="marquee-wrapper marquee-rtl" role="status" aria-live="polite"><div class="marquee-content" id="bottom-marquee-text"></div></div>
+</div>
+<script>
+const dayIndexToHeader={1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri'};
+const defaultTimetable=[
+  ['[時間]','Mon','Tue','Wed','Thu','Fri'],
+  ['Home Room\n8:10 - 8:35','','','','',''],
+  ['1\n8:35 - 9:10','Chin\n1A (201)','Chin\n1A (201)','','',''],
+  ['2\n9:10 - 9:45','Chin\n1D (204)','','','',''],
+  ['Recess 1\n9:45 - 10:00','','','','',''],
+  ['3\n10:00 - 10:35','','','','',''],
+  ['4\n10:35 - 11:10','','','','',''],
+  ['Recess 2\n11:10 - 11:25','','','','',''],
+  ['5\n11:25 - 12:00','','','Chin\n1D (204)','Chin\n1A (201)',''],
+  ['6\n12:00 - 12:35','','','Chin\n1D (204)','Chin\n1A (201)',''],
+  ['Lunch\n12:35 - 13:50','','','','',''],
+  ['7\n13:50 - 14:25','','','Chin\n1A (201)','Chin\n1D (204)','Chin\n1D (204)'],
+  ['8\n14:25 - 15:00','','','Chin\n1A (201)','Chin\n1D (204)','Chin\n1D (204)'],
+  ['Recess 3\n15:00 - 15:05','','','','',''],
+  ['9\n15:05 - 15:40','','','','',''],
+  ['Recess 4\n15:40 - 15:50','','','','',''],
+  ['10\n15:50 - 16:25','','','','','']
+];
+let manuallyHiddenCells={};let clickCountMap={};let lastClickedKey=null;let clickTimeout=null;
+let customTimeOffset=0;
+function formatDateString(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function parseMin(t){const [h,m]=t.split(':').map(Number);return h*60+m}
+function getSimulatedNow(){return new Date(Date.now()+customTimeOffset)}
+function isTargetChinClass(content){if(!content)return false;return (/Chin/i.test(content)&&!/Chin\s*Meeting/i.test(content))||/^1D\s*\(204\)$/i.test(content.trim())}
+function getTimeSlotStatus(timeStr,targetDateStr){
+  const now=getSimulatedNow();
+  if(targetDateStr!==formatDateString(now)||!timeStr||!timeStr.includes('-'))return{isLive:false,isApproaching:false,diffMs:0,diffSec:0};
+  const match=timeStr.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+  if(!match)return{isLive:false,isApproaching:false,diffMs:0,diffSec:0};
+  const startMin=parseMin(match[1]),endMin=parseMin(match[2]);
+  const currentMs=(now.getHours()*3600+now.getMinutes()*60+now.getSeconds())*1000+now.getMilliseconds();
+  const startMs=startMin*60*1000,endMs=endMin*60*1000;
+  const isLive=currentMs>=startMs&&currentMs<endMs;
+  const diffMs=startMs-currentMs,diffSec=diffMs/1000;
+  // 倒數期間 + 結束後 10 秒仍保持 approaching 狀態以便平滑消失
+  const isApproaching=diffSec<=300&&diffSec>=-10;
+  return{isLive,isApproaching,diffMs,diffSec};
+}
+function formatMMSSMS(diffMs){
+  if(diffMs<=0)return'00:00:00';
+  const m=Math.floor(diffMs/60000),s=Math.floor((diffMs%60000)/1000),ms=Math.floor((diffMs%1000)/10);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}:${String(ms).padStart(2,'0')}`;
+}
+function updateLiveClock(){
+  const now=getSimulatedNow();
+  const h=String(now.getHours()).padStart(2,'0'),m=String(now.getMinutes()).padStart(2,'0'),s=String(now.getSeconds()).padStart(2,'0');
+  const clockEl=document.getElementById('current-time');
+  clockEl.textContent=`${h}:${m}:${s}`;
+  const resetBtn=document.getElementById('reset-time-btn');
+  if(customTimeOffset!==0){
+    clockEl.classList.add('is-simulated');
+    clockEl.title='【模擬時間中】點擊重新修改';
+    resetBtn.style.display='inline-block';
+  }else{
+    clockEl.classList.remove('is-simulated');
+    clockEl.title='點擊修改測試時間';
+    resetBtn.style.display='none';
+  }
+}
+function fitTable(){
+  const box=document.getElementById('table-container'),table=box.querySelector('table');
+  if(!table)return;
+  // 強制不換行 + 自動縮放字型，確保所有文字完整顯示且不穿格
+  table.style.whiteSpace='nowrap';
+  let size=16;
+  table.style.fontSize=size+'px';
+  const cells=[...table.querySelectorAll('th,td')];
+  while(size>5){
+    const overflow=box.scrollHeight>box.clientHeight+1||box.scrollWidth>box.clientWidth+1||table.scrollHeight>box.clientHeight+1||
+                   cells.some(c=>c.scrollHeight>c.clientHeight+2||c.scrollWidth>c.clientWidth+2);
+    if(!overflow)break;
+    size-=0.5;
+    table.style.fontSize=size+'px';
+  }
+}
+/* EVA 面板文字自動縮放：對應表格大小，確保不換行、不穿格、完整顯示 */
+function fitEvaPanel(){
+  const panel=document.getElementById('eva-panel');
+  if(!panel||panel.style.display==='none')return;
+  // 取得表格目前的字型大小作為基準參考
+  const table=document.querySelector('#table-container table');
+  let baseSize=16;
+  if(table){
+    const fs=parseFloat(getComputedStyle(table).fontSize);
+    if(!isNaN(fs))baseSize=fs;
+  }
+  // 先設為基準大小，再逐步縮小直到完全不溢出
+  const elements=[
+    {sel:'.eva-header-bar', ratio:0.7},
+    {sel:'.eva-timer-title', ratio:0.85},
+    {sel:'.eva-timer-digits', ratio:2.8},
+    {sel:'.eva-target-class', ratio:0.9},
+    {sel:'.eva-box-internal .title', ratio:1.1},
+    {sel:'.eva-box-internal .sub', ratio:0.55},
+    {sel:'.eva-box-power .title', ratio:0.75},
+    {sel:'.eva-box-power .sub', ratio:0.5},
+    {sel:'.eva-status-item', ratio:0.55}
+  ];
+  // 先設定初始字型
+  elements.forEach(e=>{
+    const els=panel.querySelectorAll(e.sel);
+    els.forEach(el=>{el.style.fontSize=(baseSize*e.ratio)+'px';el.style.whiteSpace='nowrap';});
+  });
+  // 再針對整個面板與各區塊檢查溢出並縮小
+  let scale=1.0;
+  const checkOverflow=()=>{
+    if(panel.scrollHeight>panel.clientHeight+2||panel.scrollWidth>panel.clientWidth+2)return true;
+    const boxes=panel.querySelectorAll('.eva-timer-main,.eva-box-internal,.eva-box-power,.eva-header-bar,.eva-status-item,.eva-target-class,.eva-timer-digits,.eva-timer-title');
+    for(const b of boxes){
+      if(b.scrollHeight>b.clientHeight+2||b.scrollWidth>b.clientWidth+2)return true;
+    }
+    return false;
+  };
+  while(scale>0.35&&checkOverflow()){
+    scale-=0.05;
+    elements.forEach(e=>{
+      const els=panel.querySelectorAll(e.sel);
+      els.forEach(el=>{el.style.fontSize=(baseSize*e.ratio*scale)+'px';});
+    });
+  }
+}
+function handleCellClick(key){
+  if(lastClickedKey!==key){clickCountMap={};lastClickedKey=key}
+  clickCountMap[key]=(clickCountMap[key]||0)+1;
+  if(clickTimeout)clearTimeout(clickTimeout);
+  clickTimeout=setTimeout(()=>{clickCountMap[key]=0},1500);
+  if(clickCountMap[key]>=3){
+    manuallyHiddenCells[key]=!manuallyHiddenCells[key];
+    clickCountMap[key]=0;
+    renderSchedule();
+  }
+}
+function onDateChanged(){manuallyHiddenCells={};renderSchedule()}
+function updateStatusLights(diffSec){
+  const normalEl=document.getElementById('eva-status-normal');
+  const racingEl=document.getElementById('eva-status-racing');
+  // 重置
+  normalEl.classList.remove('active-normal');
+  racingEl.classList.remove('active-racing');
+  if(diffSec>240){ // 5~4 分鐘：只有 Normal 閃爍（現改為紅色）
+    normalEl.classList.add('active-normal');
+  }else if(diffSec>180){ // 4~3 分鐘：只有 Racing 閃爍
+    racingEl.classList.add('active-racing');
+  }else if(diffSec>0){ // 3 分鐘起：Racing 與 Normal 交替閃爍
+    // 使用時間戳來決定當前該亮哪一個，造成交替效果
+    const phase=Math.floor(Date.now()/700)%2; // 約 0.7 秒切換一次
+    if(phase===0) racingEl.classList.add('active-racing');
+    else normalEl.classList.add('active-normal');
+  }else{ // 已開始後仍短暫保持緊急狀態
+    racingEl.classList.add('active-racing');
+  }
+}
+function renderSchedule(){
+  updateLiveClock();
+  const dateInputVal=document.getElementById('date-select').value;
+  const selectedDate=dateInputVal?new Date(dateInputVal+'T00:00:00'):getSimulatedNow();
+  const targetDay=selectedDate.getDay(),targetHeader=dayIndexToHeader[targetDay];
+  const weekdays=['Mon','Tue','Wed','Thu','Fri'],targetIndex=weekdays.indexOf(targetHeader),hasTarget=targetIndex>=0;
+  document.getElementById('current-date').textContent=formatDateString(selectedDate);
+  document.getElementById('current-weekday').textContent=['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][targetDay];
+  let approaching=null;
+  let approachingRowIndex=-1; // 記錄真正觸發 EVA 倒數的那一列
+  for(let i=1;i<defaultTimetable.length;i++){
+    const row=defaultTimetable[i],slot=row[0]||'',status=getTimeSlotStatus(slot,dateInputVal);
+    const content=row[defaultTimetable[0].indexOf(targetHeader)]||'';
+    if(hasTarget&&status.isApproaching&&content&&isTargetChinClass(content)){
+      if(!approaching||status.diffMs<approaching.diffMs){
+        approaching={name:content.replace(/\n/g,' '),diffMs:status.diffMs,diffSec:status.diffSec,slot:slot};
+        approachingRowIndex=i;
+      }
+    }
+  }
+  const evaPanel=document.getElementById('eva-panel'),tableContainer=document.getElementById('table-container');
+  let displayOrder=[];
+  if(approaching){
+    evaPanel.style.display='flex';
+    if(targetDay===4){displayOrder=['時間','Thu','Fri'];evaPanel.style.order='1';tableContainer.style.order='2'}
+    else if(targetDay===5){displayOrder=['時間','Fri'];evaPanel.style.order='1';tableContainer.style.order='2'}
+    else if(targetDay===1){displayOrder=['時間','Mon'];evaPanel.style.order='2';tableContainer.style.order='1'}
+    else if(targetDay===2){displayOrder=['時間','Mon','Tue'];evaPanel.style.order='2';tableContainer.style.order='1'}
+    else if(targetDay===3){displayOrder=['時間','Mon','Tue','Wed'];evaPanel.style.order='2';tableContainer.style.order='1'}
+    else{displayOrder=['時間',...weekdays];evaPanel.style.order='1';tableContainer.style.order='2'}
+  }else{
+    evaPanel.style.display='none';
+    displayOrder=!hasTarget?['時間',...weekdays]:[...weekdays.slice(0,targetIndex),'時間',...weekdays.slice(targetIndex)];
+  }
+  // 保證「時間」欄永遠緊貼在當日欄左側
+  if(hasTarget){
+    const timeIndex=displayOrder.indexOf('時間');
+    const dayIndex=displayOrder.indexOf(targetHeader);
+    if(timeIndex>=0&&dayIndex>=0&&dayIndex!==timeIndex+1){
+      displayOrder.splice(timeIndex,1);
+      displayOrder.splice(displayOrder.indexOf(targetHeader),0,'時間');
+    }
+  }
+  let html='<table aria-label="每週課堂時間表"><colgroup><col class="time-column">'+displayOrder.slice(1).map(()=>'<col class="day-column">').join('')+'</colgroup><thead><tr>';
+  for(const h of displayOrder){
+    const isTarget=h===targetHeader,isTime=h==='時間';
+    let thClass='';
+    if(hasTarget&&isTime)thClass='group-th-bg group-col-left group-col-top';
+    else if(hasTarget&&isTarget)thClass='group-th-bg group-col-right group-col-top';
+    html+=`<th class="${thClass}">${isTarget?`${h} (今日)`:h}</th>`;
+  }
+  html+='</tr></thead><tbody>';
+  const totalRows=defaultTimetable.length;
+  for(let i=1;i<totalRows;i++){
+    const row=defaultTimetable[i],slot=row[0]||'',status=getTimeSlotStatus(slot,dateInputVal);
+    const isLastRow=i===totalRows-1;
+    const isLiveRow=hasTarget&&status.isLive;
+    // ★ 關鍵修改：只有真正觸發 EVA 5分鐘倒數的那一列（approachingRowIndex）才套用紅色漸變
+    const isThisApproachingRow = (approaching && i === approachingRowIndex && status.diffMs > 0);
+    html+='<tr>';
+    for(const h of displayOrder){
+      const isTarget=h===targetHeader,isTime=h==='時間';
+      const content=row[defaultTimetable[0].indexOf(h)]||'';
+      const key=`${dateInputVal}_${i}_${h}`,hidden=!!manuallyHiddenCells[key];
+      const isChin=isTargetChinClass(content);
+      let groupClass='';
+      if(hasTarget){
+        if(isTime)groupClass=' group-bg group-col-left'+(isLastRow?' group-col-bottom':'');
+        else if(isTarget)groupClass=' group-bg group-col-right'+(isLastRow?' group-col-bottom':'');
+      }
+      // 時間欄
+      if(isTime){
+        let liveTimeClass=' time-col';
+        if(isLiveRow) liveTimeClass=' current-live-cell live-slot-left';
+        else if(isThisApproachingRow) liveTimeClass=' is-approaching approach-slot-left'; // 只標示真正的預備時間
+        html+=`<td class="${liveTimeClass}${groupClass}">${slot.replace(/\n/g,'<br>')}</td>`;
+        continue;
+      }
+      // 課堂欄
+      let stateClass='';
+      if(isTarget&&status.isLive){
+        stateClass=' current-live-cell live-slot-right';
+      }else if(isThisApproachingRow && isChin){ // 只標示真正的預備課堂
+        stateClass=' is-approaching approach-slot-right';
+      }
+      if(!content){
+        // 空白格：只有真正的預備時間列才一起標示紅色，其他情況不標示
+        if(isTarget&&status.isLive){
+          html+=`<td class="current-live-cell live-slot-right${groupClass}"></td>`;
+        }else if(isThisApproachingRow){
+          html+=`<td class="is-approaching approach-slot-right${groupClass}"></td>`;
+        }else{
+          html+=`<td class="free-slot${groupClass}"></td>`;
+        }
+      }else if(hidden){
+        html+=`<td class="manually-hidden${groupClass}" onclick="handleCellClick('${key}')" aria-label="已隱藏的課堂，連點三次還原"></td>`;
+      }else{
+        const tintClass=/1A\s*\(201\)/i.test(content)?' class-1a':/1D\s*\(204\)/i.test(content)?' class-1d':'';
+        const bgClass=stateClass?'':' active-class'+tintClass;
+        html+=`<td class="${bgClass}${groupClass}${stateClass}" onclick="handleCellClick('${key}')" title="連點三次可隱藏或還原">${content.replace(/\n/g,'<br>')}</td>`;
+      }
+    }
+    html+='</tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById('table-container').innerHTML=html;
+  // 跑馬燈與 EVA 面板
+  const bannerTop=document.getElementById('approaching-banner-top');
+  const bannerBottom=document.getElementById('approaching-banner-bottom');
+  const topText=document.getElementById('top-marquee-text');
+  const bottomText=document.getElementById('bottom-marquee-text');
+  if(approaching){
+    bannerTop.style.display='block';
+    bannerBottom.style.display='block';
+    const formattedDigits=formatMMSSMS(approaching.diffMs);
+    document.getElementById('eva-timer-digits').textContent=formattedDigits;
+    document.getElementById('eva-target-class').textContent=approaching.name;
+    // 狀態燈邏輯
+    updateStatusLights(approaching.diffSec);
+    let alertMsg='',phaseClass='';
+    if(approaching.diffSec>120){
+      document.body.classList.remove('emergency-critical');
+      evaPanel.classList.remove('critical-mode');
+      phaseClass='phase-1';
+      alertMsg=`緊急事態非常警報令 EMERGENCY &nbsp;&bull;&nbsp; ⚠️ 情報確認 &nbsp;&bull;&nbsp; 快將上課！[${approaching.name}] &nbsp;&bull;&nbsp; ⏱️ 倒數 ${formattedDigits} &nbsp;&bull;&nbsp; `;
+    }else if(approaching.diffSec>0){
+      document.body.classList.add('emergency-critical');
+      evaPanel.classList.add('critical-mode');
+      phaseClass='phase-2';
+      alertMsg=`🚨 極限警報 CRITICAL ALERT &nbsp;&bull;&nbsp; ⚠️ 非常事態 &nbsp;&bull;&nbsp; [${approaching.name}] 即將開始！ &nbsp;&bull;&nbsp; ⏱️ 倒數 ${formattedDigits} &nbsp;&bull;&nbsp; `;
+    }else{
+      document.body.classList.add('emergency-critical');
+      evaPanel.classList.add('critical-mode');
+      phaseClass='phase-2';
+      const postSec=(Math.abs(approaching.diffMs)/1000).toFixed(1);
+      alertMsg=`🚨 課堂已開始 CLASS STARTED &nbsp;&bull;&nbsp; [${approaching.name}] &nbsp;&bull;&nbsp; ⏱️ 已開始 ${postSec} 秒 &nbsp;&bull;&nbsp; `;
+    }
+    bannerTop.className=`marquee-wrapper marquee-ltr ${phaseClass}`;
+    bannerBottom.className=`marquee-wrapper marquee-rtl ${phaseClass}`;
+    const repeatedContent=`<span>${alertMsg.repeat(4)}</span><span>${alertMsg.repeat(4)}</span>`;
+    topText.innerHTML=repeatedContent;
+    bottomText.innerHTML=repeatedContent;
+  }else{
+    document.body.classList.remove('emergency-critical');
+    evaPanel.classList.remove('critical-mode');
+    bannerTop.style.display='none';
+    bannerBottom.style.display='none';
+    topText.innerHTML='';
+    bottomText.innerHTML='';
+    // 清除狀態燈
+    document.getElementById('eva-status-normal').classList.remove('active-normal');
+    document.getElementById('eva-status-racing').classList.remove('active-racing');
+  }
+  requestAnimationFrame(()=>{
+    fitTable();
+    fitEvaPanel();
+  });
+}
+document.getElementById('current-time').addEventListener('click',()=>{
+  const currentNow=getSimulatedNow();
+  const defaultVal=`${String(currentNow.getHours()).padStart(2,'0')}:${String(currentNow.getMinutes()).padStart(2,'0')}:${String(currentNow.getSeconds()).padStart(2,'0')}`;
+  const input=prompt('【測試功能】請輸入欲模擬的時間 (格式 HH:MM:SS 或 HH:MM)：\n例如輸入 14:23:10 可測試最後 2 分鐘全紅閃爍與毫秒倒數',defaultVal);
+  if(input!==null&&input.trim()!==''){
+    const parts=input.trim().split(':').map(Number);
+    if(parts.length>=2&&!isNaN(parts[0])&&!isNaN(parts[1])){
+      const h=parts[0],m=parts[1],s=parts[2]||0;
+      const targetDate=new Date(currentNow);
+      targetDate.setHours(h,m,s,0);
+      customTimeOffset=targetDate.getTime()-Date.now();
+      renderSchedule();
+    }else alert('時間格式不正確，請使用 HH:MM 或 HH:MM:SS');
+  }
+});
+document.getElementById('reset-time-btn').addEventListener('click',()=>{customTimeOffset=0;renderSchedule()});
+function setTestWeekday(){
+  const dateInput=document.getElementById('date-select');
+  const simulatedNow=getSimulatedNow();
+  const selectedDate=dateInput.value?new Date(dateInput.value+'T00:00:00'):new Date(simulatedNow);
+  const currentDay=selectedDate.getDay();
+  const answer=prompt('【測試功能】請輸入要測試的星期：0=星期日、1=星期一、2=星期二、3=星期三、4=星期四、5=星期五、6=星期六；也可輸入「星期一」等。測試會同步模擬日期與時間，並觸發與實際相同的課堂預警、倒數及警報。',String(currentDay));
+  if(answer===null||answer.trim()==='')return;
+  const cleaned=answer.trim().replace(/^星期|^週/,'');
+  const dayMap={'日':0,'天':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6};
+  const requestedDay=/^[0-6]$/.test(cleaned)?Number(cleaned):dayMap[cleaned];
+  if(requestedDay===undefined){alert('輸入無效，請輸入 0 至 6，或「星期一」至「星期日」。');return;}
+  selectedDate.setDate(selectedDate.getDate()+requestedDay-currentDay);
+  selectedDate.setHours(simulatedNow.getHours(),simulatedNow.getMinutes(),simulatedNow.getSeconds(),simulatedNow.getMilliseconds());
+  customTimeOffset=selectedDate.getTime()-Date.now();
+  dateInput.value=formatDateString(selectedDate);
+  onDateChanged();
+}
+const weekdayPicker=document.getElementById('current-weekday');
+weekdayPicker.addEventListener('click',setTestWeekday);
+weekdayPicker.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setTestWeekday()}});
+const dateInput=document.getElementById('date-select');
+dateInput.value=formatDateString(getSimulatedNow());
+dateInput.addEventListener('change',onDateChanged);
+renderSchedule();
+setInterval(renderSchedule,30);
+window.addEventListener('resize',()=>requestAnimationFrame(()=>{fitTable();fitEvaPanel();}));
+if('ResizeObserver'in window){
+  new ResizeObserver(()=>requestAnimationFrame(()=>{fitTable();fitEvaPanel();})).observe(document.getElementById('table-container'));
+  new ResizeObserver(()=>requestAnimationFrame(fitEvaPanel)).observe(document.getElementById('eva-panel'));
+}
+</script>
+</body>
+</html>
